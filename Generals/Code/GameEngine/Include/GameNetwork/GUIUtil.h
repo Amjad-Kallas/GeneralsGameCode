@@ -55,7 +55,7 @@ void EnableAcceptControls(Bool Enabled, GameInfo *myGame, GameWindow *comboPlaye
 // selectable in the army combo box. Returns TRUE if any slot was changed.
 Bool RandomizeArmies( GameInfo *myGame );
 
-// TheSuperHackers @feature Creates a "Random Armies" button below the army combo box of the last
-// slot, styled like 'styleButton'. Clicks are sent to the same owner as the army combo boxes.
-GameWindow *CreateRandomArmiesButton( GameWindow *comboPlayerTemplate[], GameWindow *styleButton,
+// TheSuperHackers @feature Creates a "Random Armies" button styled like 'startButton', with the same
+// height, centered between 'startButton' and 'backButton'. Clicks go to the start button's owner.
+GameWindow *CreateRandomArmiesButton( GameWindow *startButton, GameWindow *backButton,
 																			const char *layoutFilename );

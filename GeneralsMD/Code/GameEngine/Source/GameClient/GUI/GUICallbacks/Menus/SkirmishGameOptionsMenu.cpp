@@ -1143,7 +1143,7 @@ void InitSkirmishGameGadgets()
 //			buttonStartPosition[i]->winHide(TRUE); // not using these right now
 	}
 
-	buttonRandomArmies = CreateRandomArmiesButton( comboBoxPlayerTemplate, buttonStart, "SkirmishGameOptionsMenu.wnd" );
+	buttonRandomArmies = CreateRandomArmiesButton( buttonStart, buttonExit, "SkirmishGameOptionsMenu.wnd" );
 
 	populateSkirmishBattleHonors();
 }

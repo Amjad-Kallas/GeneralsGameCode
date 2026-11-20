@@ -719,7 +719,7 @@ void InitLanGameGadgets()
 		GadgetButtonSetEnabledColor(buttonAccept[0], acceptTrueColor );
 
 	// only the host rolls the armies; everybody else sees the result in the army column
-	buttonRandomArmies = CreateRandomArmiesButton( comboBoxPlayerTemplate, buttonStart, "LanGameOptionsMenu.wnd" );
+	buttonRandomArmies = CreateRandomArmiesButton( buttonStart, buttonBack, "LanGameOptionsMenu.wnd" );
 	if (buttonRandomArmies)
 		buttonRandomArmies->winHide( !TheLAN->AmIHost() );
 }

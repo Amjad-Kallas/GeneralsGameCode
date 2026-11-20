@@ -1110,7 +1110,7 @@ void InitWOLGameGadgets()
 		//GadgetButtonSetEnabledColor(buttonAccept[0], GameSpyColor[GSCOLOR_ACCEPT_TRUE]);
 
 	// only the host rolls the armies; everybody else sees the result in the army column
-	buttonRandomArmies = CreateRandomArmiesButton( comboBoxPlayerTemplate, buttonStart, "GameSpyGameOptionsMenu.wnd" );
+	buttonRandomArmies = CreateRandomArmiesButton( buttonStart, buttonBack, "GameSpyGameOptionsMenu.wnd" );
 	if (buttonRandomArmies)
 		buttonRandomArmies->winHide( !TheGameSpyInfo->amIHost() );
 }

@@ -365,15 +365,13 @@ Bool RandomizeArmies( GameInfo *myGame )
 
 // -----------------------------------------------------------------------------
 
-GameWindow *CreateRandomArmiesButton( GameWindow *comboPlayerTemplate[], GameWindow *styleButton,
+GameWindow *CreateRandomArmiesButton( GameWindow *startButton, GameWindow *backButton,
 																			const char *layoutFilename )
 {
-	GameWindow *firstCombo = comboPlayerTemplate[0];
-	GameWindow *lastCombo = comboPlayerTemplate[MAX_SLOTS - 1];
-	if (!firstCombo || !lastCombo || !styleButton)
+	if (!startButton || !backButton)
 		return nullptr;
 
-	GameWindow *parent = lastCombo->winGetParent();
+	GameWindow *parent = startButton->winGetParent();
 
 	AsciiString buttonName;
 	buttonName.format("%s:ButtonRandomArmies", layoutFilename);
@@ -387,14 +385,8 @@ GameWindow *CreateRandomArmiesButton( GameWindow *comboPlayerTemplate[], GameWin
 		return existing;
 	}
 
-	// place the button right below the army combo box of the last slot, with the same size
-	Int x, y, width, height;
-	lastCombo->winGetPosition( &x, &y );
-	lastCombo->winGetSize( &width, &height );
-	y += height + height / 4;
-
-	// copy the look of an existing menu button (frame, images, text colors and font)
-	WinInstanceData *styleData = styleButton->winGetInstanceData();
+	// copy the look of the start button (frame, images, text colors and font)
+	WinInstanceData *styleData = startButton->winGetInstanceData();
 	WinInstanceData instData;
 	instData.init();
 	BitSet( instData.m_style, GWS_PUSH_BUTTON | GWS_MOUSE_TRACK );
@@ -412,22 +404,66 @@ GameWindow *CreateRandomArmiesButton( GameWindow *comboPlayerTemplate[], GameWin
 		L"Give every player a random army now, so everyone can see who plays what before the game starts.") );
 
 	UnsignedInt status = WIN_STATUS_ENABLED;
-	if (BitIsSet( styleButton->winGetStatus(), WIN_STATUS_IMAGE ))
+	if (BitIsSet( startButton->winGetStatus(), WIN_STATUS_IMAGE ))
 		status |= WIN_STATUS_IMAGE;
 
+	// start out with exactly the size and row of the start button
+	Int startX, startY, startW, startH;
+	startButton->winGetScreenPosition( &startX, &startY );
+	startButton->winGetSize( &startW, &startH );
+
 	GameWindow *button = TheWindowManager->gogoGadgetPushButton( parent, status,
-		x, y,
-		width, height,
-		&instData, styleButton->winGetFont(), FALSE );
+		0, 0,
+		startW, startH,
+		&instData, startButton->winGetFont(), FALSE );
 
 	if (!button)
 		return nullptr;
 
 	button->winSetWindowId( buttonID );
 
-	// Route GBM_SELECTED to the same window that receives the army combo box messages.
-	button->winSetOwner( firstCombo->winGetOwner() );
+	// Route GBM_SELECTED to the same window that receives the start button messages.
+	button->winSetOwner( startButton->winGetOwner() );
 	GadgetButtonSetText( button, TheGameText->FETCH_OR_SUBSTITUTE("GUI:RandomArmies", L"RANDOM ARMIES") );
+
+	// Same height as the start button, but only as wide as the text plus a margin of half
+	// the height on each side, so the text always fits.
+	Int width = startW;
+	DisplayString *text = button->winGetInstanceData()->getTextDisplayString();
+	if (text)
+	{
+		const Int textW = text->getWidth();
+		if (textW > 0)
+			width = min( startW, textW + startH );
+	}
+
+	// center it between the start and the back button, without overlapping them
+	Int backX, backY, backW, backH;
+	backButton->winGetScreenPosition( &backX, &backY );
+	backButton->winGetSize( &backW, &backH );
+
+	Int leftEdge = startX + startW;
+	Int rightEdge = backX;
+	if (backX < startX)
+	{
+		// the back button is on the left side
+		leftEdge = backX + backW;
+		rightEdge = startX;
+	}
+	const Int maxWidth = (rightEdge - leftEdge) - startH;
+	if (maxWidth > 0 && width > maxWidth)
+		width = maxWidth;
+
+	Int screenX = (leftEdge + rightEdge) / 2 - width / 2;
+	Int screenY = startY;
+
+	// convert to coordinates relative to the parent
+	Int parentX = 0, parentY = 0;
+	if (parent)
+		parent->winGetScreenPosition( &parentX, &parentY );
+
+	button->winSetSize( width, startH );
+	button->winSetPosition( screenX - parentX, screenY - parentY );
 
 	return button;
 }
