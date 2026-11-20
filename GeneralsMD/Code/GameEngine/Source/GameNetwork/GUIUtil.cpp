@@ -426,16 +426,9 @@ GameWindow *CreateRandomArmiesButton( GameWindow *startButton, GameWindow *backB
 	button->winSetOwner( startButton->winGetOwner() );
 	GadgetButtonSetText( button, TheGameText->FETCH_OR_SUBSTITUTE("GUI:RandomArmies", L"RANDOM ARMIES") );
 
-	// Same height as the start button, but only as wide as the text plus a margin of half
-	// the height on each side, so the text always fits.
-	Int width = startW;
-	DisplayString *text = button->winGetInstanceData()->getTextDisplayString();
-	if (text)
-	{
-		const Int textW = text->getWidth();
-		if (textW > 0)
-			width = min( startW, textW + startH );
-	}
+	// Same height as the start button and slightly narrower, which still leaves
+	// enough room for the text on a single line.
+	Int width = startW * 85 / 100;
 
 	// center it between the start and the back button, without overlapping them
 	Int backX, backY, backW, backH;
