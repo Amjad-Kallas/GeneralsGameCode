@@ -43,6 +43,7 @@
 #include "GameNetwork/GameInfo.h"
 #include "Common/PlayerTemplate.h"
 #include "GameNetwork/LANAPICallbacks.h" // for acceptTrueColor, etc
+#include "GameClient/ClientRandomValue.h"
 
 
 // -----------------------------------------------------------------------------
@@ -302,6 +303,95 @@ void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGa
 		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
 	}
 	GadgetComboBoxSetSelectedPos(comboArray[comboBox], 0);
+}
+
+// -----------------------------------------------------------------------------
+
+Bool RandomizeTeams( GameInfo *myGame )
+{
+	if (!myGame)
+		return FALSE;
+
+	// gather every slot that will actually play (humans and AI, but no observers)
+	Int playerSlots[MAX_SLOTS];
+	Int numPlayers = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		const GameSlot *slot = myGame->getConstSlot(i);
+		if (slot && slot->isOccupied() && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
+			playerSlots[numPlayers++] = i;
+	}
+
+	if (numPlayers < 2)
+		return FALSE;
+
+	// shuffle the players (Fisher-Yates)
+	for (Int k = numPlayers - 1; k > 0; --k)
+	{
+		const Int j = GameClientRandomValue(0, k);
+		std::swap(playerSlots[k], playerSlots[j]);
+	}
+
+	// deal the shuffled players into two teams so team sizes differ by at most one
+	const Int numTeams = 2;
+	for (Int n = 0; n < numPlayers; ++n)
+	{
+		myGame->getSlot(playerSlots[n])->setTeamNumber(n % numTeams);
+	}
+
+	return TRUE;
+}
+
+// -----------------------------------------------------------------------------
+
+GameWindow *CreateRandomTeamsButton( GameWindow *teamComboBox, const char *layoutFilename )
+{
+	if (!teamComboBox)
+		return nullptr;
+
+	// The button is placed as a child over the team column header, so it automatically
+	// follows the header's position and visibility (e.g. when the map select overlay hides it).
+	AsciiString headerName;
+	headerName.format("%s:StaticTextTeam", layoutFilename);
+	GameWindow *header = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY(headerName) );
+	if (!header)
+	{
+		DEBUG_CRASH(("Could not find %s", headerName.str()));
+		return nullptr;
+	}
+
+	// the menu may be initialized again while its windows still exist; reuse the button then
+	if (GameWindow *existing = header->winGetChild())
+		return existing;
+
+	Int width, height;
+	header->winGetSize( &width, &height );
+
+	WinInstanceData instData;
+	instData.init();
+	BitSet( instData.m_style, GWS_PUSH_BUTTON | GWS_MOUSE_TRACK );
+	instData.setTooltipText( TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:RandomTeams",
+		L"Randomly split all players into two teams. Everyone sees the result before the game starts.") );
+
+	GameWindow *button = TheWindowManager->gogoGadgetPushButton( header,
+		WIN_STATUS_ENABLED | WIN_STATUS_IMAGE,
+		0, 0,
+		width, height,
+		&instData, nullptr, TRUE );
+
+	if (!button)
+		return nullptr;
+
+	AsciiString buttonName;
+	buttonName.format("%s:ButtonRandomTeams", layoutFilename);
+	button->winSetWindowId( NAMEKEY(buttonName) );
+
+	// Route GBM_SELECTED to the same window that receives the team combo box messages,
+	// instead of the static text header which has no system callback.
+	button->winSetOwner( teamComboBox->winGetOwner() );
+	GadgetButtonSetText( button, TheGameText->FETCH_OR_SUBSTITUTE("GUI:RandomTeams", L"Random Teams") );
+
+	return button;
 }
 
 // -----------------------------------------------------------------------------

@@ -50,3 +50,11 @@ void EnableAcceptControls(Bool Enabled, GameInfo *myGame, GameWindow *comboPlaye
 										GameWindow *comboColor[], GameWindow *comboPlayerTemplate[],
 										GameWindow *comboTeam[], GameWindow *buttonAccept[], GameWindow *buttonStart,
 										GameWindow *buttonMapStartPosition[], Int slotNum = -1);
+
+// TheSuperHackers @feature Randomly splits all occupied, non-observer slots into two balanced teams.
+// Returns TRUE if the teams were assigned, FALSE if there are not enough players to split.
+Bool RandomizeTeams( GameInfo *myGame );
+
+// TheSuperHackers @feature Creates a "Random Teams" button on top of the team column header
+// (<layoutFilename>:StaticTextTeam). Clicks are sent to the same owner as 'teamComboBox'.
+GameWindow *CreateRandomTeamsButton( GameWindow *teamComboBox, const char *layoutFilename );

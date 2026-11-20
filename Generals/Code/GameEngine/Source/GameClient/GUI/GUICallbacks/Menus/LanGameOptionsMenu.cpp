@@ -128,6 +128,7 @@ static GameWindow *comboBoxColor[MAX_SLOTS] = {0};
 static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {0};
 
 static GameWindow *comboBoxTeam[MAX_SLOTS] = {0};
+static GameWindow *buttonRandomTeams = nullptr;
 
 //static GameWindow *buttonStartPosition[MAX_SLOTS] = {0};
 //
@@ -717,11 +718,16 @@ void InitLanGameGadgets()
 	if( buttonAccept[0] )
 		GadgetButtonSetEnabledColor(buttonAccept[0], acceptTrueColor );
 
+	// only the host decides the teams; everybody else sees the result in the team column
+	buttonRandomTeams = CreateRandomTeamsButton( comboBoxTeam[0], "LanGameOptionsMenu.wnd" );
+	if (buttonRandomTeams)
+		buttonRandomTeams->winHide( !TheLAN->AmIHost() );
 }
 
 void DeinitLanGameGadgets()
 {
 	parentLanGameOptions = nullptr;
+	buttonRandomTeams = nullptr;
 	buttonChat = nullptr;
 	buttonSelectMap = nullptr;
 	buttonStart = nullptr;
@@ -1144,6 +1150,17 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 					if (!txtInput.isEmpty())
 					{
 						TheLAN->RequestPlayerChat(txtInput);
+					}
+				}
+				else if ( buttonRandomTeams && control == buttonRandomTeams )
+				{
+					LANGameInfo *myGame = TheLAN->GetMyGame();
+					if (myGame && myGame->amIHost() && RandomizeTeams( myGame ))
+					{
+						// send around the new slotlist; everyone has to accept the new teams again
+						myGame->resetAccepted();
+						TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
+						lanUpdateSlotList();
 					}
 				}
 				else if ( controlID == buttonSelectMapID )

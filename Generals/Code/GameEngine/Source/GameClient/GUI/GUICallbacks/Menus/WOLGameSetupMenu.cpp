@@ -211,6 +211,7 @@ static GameWindow *comboBoxColor[MAX_SLOTS] = {0};
 static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {0};
 
 static GameWindow *comboBoxTeam[MAX_SLOTS] = {0};
+static GameWindow *buttonRandomTeams = nullptr;
 
 //static GameWindow *buttonStartPosition[MAX_SLOTS] = {0};
 //
@@ -1107,11 +1108,17 @@ void InitWOLGameGadgets()
 		buttonBack->winEnable(TRUE);
 	}
 		//GadgetButtonSetEnabledColor(buttonAccept[0], GameSpyColor[GSCOLOR_ACCEPT_TRUE]);
+
+	// only the host decides the teams; everybody else sees the result in the team column
+	buttonRandomTeams = CreateRandomTeamsButton( comboBoxTeam[0], "GameSpyGameOptionsMenu.wnd" );
+	if (buttonRandomTeams)
+		buttonRandomTeams->winHide( !TheGameSpyInfo->amIHost() );
 }
 
 void DeinitWOLGameGadgets()
 {
 	parentWOLGameSetup = nullptr;
+	buttonRandomTeams = nullptr;
 	buttonChat = nullptr;
 	buttonSelectMap = nullptr;
 	buttonStart = nullptr;
@@ -2513,9 +2520,20 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					if (!txtInput.isEmpty())
 						TheGameSpyInfo->sendChat(txtInput, FALSE, nullptr); // 'emote' button is now carriage-return
 				}
+				else if ( buttonRandomTeams && control == buttonRandomTeams )
+				{
+					GameInfo *myGame = TheGameSpyInfo->getCurrentStagingRoom();
+					if (myGame && TheGameSpyInfo->amIHost() && RandomizeTeams( myGame ))
+					{
+						// send around the new slotlist; everyone has to accept the new teams again
+						myGame->resetAccepted();
+						TheGameSpyInfo->setGameOptions();
+						WOLDisplaySlotList();
+					}
+				}
 				else if ( controlID == buttonSelectMapID )
 				{
-					WOLMapSelectLayout = TheWindowManager->winCreateLayout( "Menus/WOLMapSelectMenu.wnd" );
+					WOLMapSelectLayout =TheWindowManager->winCreateLayout( "Menus/WOLMapSelectMenu.wnd" );
 					WOLMapSelectLayout->runInit();
 					WOLMapSelectLayout->hide( FALSE );
 					WOLMapSelectLayout->bringForward();

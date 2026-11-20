@@ -128,6 +128,7 @@ static GameWindow *comboBoxColor[MAX_SLOTS] = {0};
 static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {0};
 
 static GameWindow *comboBoxTeam[MAX_SLOTS] = {0};
+static GameWindow *buttonRandomTeams = nullptr;
 
 //static GameWindow *buttonStartPosition[MAX_SLOTS] = {0};
 //
@@ -1083,6 +1084,8 @@ void InitSkirmishGameGadgets()
 //			buttonStartPosition[i]->winHide(TRUE); // not using these right now
 	}
 
+	buttonRandomTeams = CreateRandomTeamsButton( comboBoxTeam[0], "SkirmishGameOptionsMenu.wnd" );
+
 	populateSkirmishBattleHonors();
 }
 
@@ -1524,6 +1527,11 @@ WindowMsgHandledType SkirmishGameOptionsMenuSystem( GameWindow *window, Unsigned
 //					GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
 //					GadgetSliderSetPosition( sliderGameSpeed, TheGlobalData->m_framesPerSecondLimit );
 //				}
+				else if ( buttonRandomTeams && control == buttonRandomTeams )
+				{
+					if (RandomizeTeams( TheSkirmishGameInfo ))
+						skirmishUpdateSlotList();
+				}
 				else if ( controlID == buttonSelectMapID )
 				{
 					sandboxOk = FALSE;
