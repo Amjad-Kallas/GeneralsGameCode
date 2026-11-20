@@ -45,6 +45,7 @@
 #include "Common/PlayerTemplate.h"
 #include "GameNetwork/LANAPICallbacks.h" // for acceptTrueColor, etc
 #include "GameClient/ChallengeGenerals.h"
+#include "GameClient/ClientRandomValue.h"
 
 
 // -----------------------------------------------------------------------------
@@ -231,17 +232,10 @@ void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myG
 
 // -----------------------------------------------------------------------------
 
-void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool allowObservers)
+// Collects the player template indices that can be picked in the army combo box.
+static void getSelectablePlayerTemplates(GameInfo *myGame, std::vector<Int> &templates)
 {
 	Int numPlayerTemplates = ThePlayerTemplateStore->getPlayerTemplateCount();
-	UnicodeString playerTemplateName;
-
-	GadgetComboBoxReset(comboArray[comboBox]);
-
-	MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(PLAYERTEMPLATE_RANDOM);
-	Int newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], TheGameText->fetch("GUI:Random"), def->getColor());
-	GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)PLAYERTEMPLATE_RANDOM);
-
 	std::set<AsciiString> seenSides;
 
 	for (Int c=0; c<numPlayerTemplates; ++c)
@@ -273,10 +267,30 @@ void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], Game
 
 		seenSides.insert(side);
 
+		templates.push_back(c);
+	}
+}
+
+void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool allowObservers)
+{
+	GadgetComboBoxReset(comboArray[comboBox]);
+
+	MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(PLAYERTEMPLATE_RANDOM);
+	Int newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], TheGameText->fetch("GUI:Random"), def->getColor());
+	GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)PLAYERTEMPLATE_RANDOM);
+
+	std::vector<Int> templates;
+	getSelectablePlayerTemplates(myGame, templates);
+
+	for (size_t t = 0; t < templates.size(); ++t)
+	{
+		const Int c = templates[t];
+		const PlayerTemplate *fac = ThePlayerTemplateStore->getNthPlayerTemplate(c);
+		AsciiString side;
+		side.format("SIDE:%s", fac->getSide().str());
 		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], TheGameText->fetch(side), def->getColor());
 		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
 	}
-	seenSides.clear();
 
 	// disabling observers for Multiplayer test
 	if (allowObservers)
@@ -317,6 +331,105 @@ void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGa
 		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
 	}
 	GadgetComboBoxSetSelectedPos(comboArray[comboBox], 0);
+}
+
+// -----------------------------------------------------------------------------
+
+Bool RandomizeArmies( GameInfo *myGame )
+{
+	if (!myGame)
+		return FALSE;
+
+	// pick from exactly the armies the army combo box offers
+	std::vector<Int> templates;
+	getSelectablePlayerTemplates(myGame, templates);
+	if (templates.empty())
+		return FALSE;
+
+	Bool changed = FALSE;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		GameSlot *slot = myGame->getSlot(i);
+
+		// every slot that will actually play (humans and AI, but no observers)
+		if (!slot || !slot->isOccupied() || slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
+			continue;
+
+		const Int pick = GameClientRandomValue(0, (Int)templates.size() - 1);
+		slot->setPlayerTemplate(templates[pick]);
+		changed = TRUE;
+	}
+
+	return changed;
+}
+
+// -----------------------------------------------------------------------------
+
+GameWindow *CreateRandomArmiesButton( GameWindow *comboPlayerTemplate[], GameWindow *styleButton,
+																			const char *layoutFilename )
+{
+	GameWindow *firstCombo = comboPlayerTemplate[0];
+	GameWindow *lastCombo = comboPlayerTemplate[MAX_SLOTS - 1];
+	if (!firstCombo || !lastCombo || !styleButton)
+		return nullptr;
+
+	GameWindow *parent = lastCombo->winGetParent();
+
+	AsciiString buttonName;
+	buttonName.format("%s:ButtonRandomArmies", layoutFilename);
+	const NameKeyType buttonID = NAMEKEY(buttonName);
+
+	// the menu may be initialized again while its windows still exist; reuse the button then.
+	// A new lobby gets a new roll, so make it clickable again.
+	if (GameWindow *existing = TheWindowManager->winGetWindowFromId( parent, buttonID ))
+	{
+		existing->winEnable( TRUE );
+		return existing;
+	}
+
+	// place the button right below the army combo box of the last slot, with the same size
+	Int x, y, width, height;
+	lastCombo->winGetPosition( &x, &y );
+	lastCombo->winGetSize( &width, &height );
+	y += height + height / 4;
+
+	// copy the look of an existing menu button (frame, images, text colors and font)
+	WinInstanceData *styleData = styleButton->winGetInstanceData();
+	WinInstanceData instData;
+	instData.init();
+	BitSet( instData.m_style, GWS_PUSH_BUTTON | GWS_MOUSE_TRACK );
+	for (Int d = 0; d < MAX_DRAW_DATA; ++d)
+	{
+		instData.m_enabledDrawData[d] = styleData->m_enabledDrawData[d];
+		instData.m_disabledDrawData[d] = styleData->m_disabledDrawData[d];
+		instData.m_hiliteDrawData[d] = styleData->m_hiliteDrawData[d];
+	}
+	instData.m_enabledText = styleData->m_enabledText;
+	instData.m_disabledText = styleData->m_disabledText;
+	instData.m_hiliteText = styleData->m_hiliteText;
+	instData.m_imageOffset = styleData->m_imageOffset;
+	instData.setTooltipText( TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:RandomArmies",
+		L"Give every player a random army now, so everyone can see who plays what before the game starts.") );
+
+	UnsignedInt status = WIN_STATUS_ENABLED;
+	if (BitIsSet( styleButton->winGetStatus(), WIN_STATUS_IMAGE ))
+		status |= WIN_STATUS_IMAGE;
+
+	GameWindow *button = TheWindowManager->gogoGadgetPushButton( parent, status,
+		x, y,
+		width, height,
+		&instData, styleButton->winGetFont(), FALSE );
+
+	if (!button)
+		return nullptr;
+
+	button->winSetWindowId( buttonID );
+
+	// Route GBM_SELECTED to the same window that receives the army combo box messages.
+	button->winSetOwner( firstCombo->winGetOwner() );
+	GadgetButtonSetText( button, TheGameText->FETCH_OR_SUBSTITUTE("GUI:RandomArmies", L"RANDOM ARMIES") );
+
+	return button;
 }
 
 // -----------------------------------------------------------------------------

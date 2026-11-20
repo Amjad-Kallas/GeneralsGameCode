@@ -222,6 +222,7 @@ static GameWindow *comboBoxColor[MAX_SLOTS] = {0};
 static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {0};
 
 static GameWindow *comboBoxTeam[MAX_SLOTS] = {0};
+static GameWindow *buttonRandomArmies = nullptr;
 
 //static GameWindow *buttonStartPosition[MAX_SLOTS] = {0};
 //
@@ -1259,6 +1260,11 @@ void InitWOLGameGadgets()
 	{
 		buttonBack->winEnable(TRUE);
 	}
+
+	// only the host rolls the armies; everybody else sees the result in the army column
+	buttonRandomArmies = CreateRandomArmiesButton( comboBoxPlayerTemplate, buttonStart, "GameSpyGameOptionsMenu.wnd" );
+	if (buttonRandomArmies)
+		buttonRandomArmies->winHide( !TheGameSpyInfo->amIHost() );
 		//GadgetButtonSetEnabledColor(buttonAccept[0], GameSpyColor[GSCOLOR_ACCEPT_TRUE]);
 }
 
@@ -1280,6 +1286,7 @@ void DeinitWOLGameGadgets()
 	checkBoxUseStats = nullptr;
   checkBoxLimitSuperweapons = nullptr;
   comboBoxStartingCash = nullptr;
+	buttonRandomArmies = nullptr;
 
 //	GameWindow *staticTextTitle = nullptr;
 	for (Int i = 0; i < MAX_SLOTS; i++)
@@ -2707,6 +2714,19 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					// Echo the user's input to the chat window
 					if (!txtInput.isEmpty())
 						TheGameSpyInfo->sendChat(txtInput, FALSE, nullptr); // 'emote' button is now carriage-return
+				}
+				else if ( buttonRandomArmies && control == buttonRandomArmies )
+				{
+					GameInfo *myGame = TheGameSpyInfo->getCurrentStagingRoom();
+					if (myGame && TheGameSpyInfo->amIHost() && RandomizeArmies( myGame ))
+					{
+						// the armies can be rolled only once per lobby
+						buttonRandomArmies->winEnable( FALSE );
+						// send around the new slotlist; everyone has to accept the new armies again
+						myGame->resetAccepted();
+						TheGameSpyInfo->setGameOptions();
+						WOLDisplaySlotList();
+					}
 				}
 				else if ( controlID == buttonSelectMapID )
 				{
